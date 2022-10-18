@@ -1,0 +1,2 @@
+[workspace]
+members = ["manager", "rust-rayon-adder"]
