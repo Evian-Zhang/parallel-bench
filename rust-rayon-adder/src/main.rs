@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use rayon::prelude::*;
 use std::env;
 use std::fs::File;
@@ -21,18 +20,14 @@ fn main() {
     let testcase_file = File::open(testcase_path).unwrap();
     let testcase = testcase_file
         .bytes()
-        .map(|optional_byte| unsafe { optional_byte.unwrap_unchecked() })
-        .tuples()
-        .map(|(a1, a2, a3, a4, a5, a6, a7, a8)| {
-            usize::from_ne_bytes([a1, a2, a3, a4, a5, a6, a7, a8])
-        })
+        .map(|optional_byte| unsafe { optional_byte.unwrap_unchecked() } as usize)
         .collect::<Vec<_>>();
 
     let now = Instant::now();
 
     let result = calculate_sum(testcase.as_slice());
 
-    let duration = now.elapsed().as_millis();
+    let duration = now.elapsed().as_micros();
     println!("{result}");
     println!("{duration}");
 }

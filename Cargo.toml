@@ -1,2 +1,2 @@
 [workspace]
-members = ["manager", "rust-rayon-adder"]
+members = ["manager", "rust-rayon-adder", "rust-mpi-adder-wrapper", "rust-mpi-adder-binding"]

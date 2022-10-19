@@ -1,5 +1,5 @@
 mod single_bench;
 
 fn main() {
-    println!("Hello, world!");
+    single_bench::single_bench("./testcase.bin", 1024 * 1024, 4);
 }
