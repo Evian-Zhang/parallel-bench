@@ -87,5 +87,7 @@ int main(int argc, char **argv) {
         free(part_testcase);
     }
 
+    MPI_Finalize();
+
     return 0;
 }

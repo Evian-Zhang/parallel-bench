@@ -12,7 +12,7 @@ struct BenchResult {
 
 fn main() {
     let mut bench_results = vec![];
-    for power in 20u32..40u32 {
+    for power in 20u32..30u32 {
         let input_size = 2usize.pow(power);
         let correct_result = single_bench::generate_testcase("./testcase.bin", input_size);
         for kernel_count in [1, 2, 4, 8, 16, 32, 64] {
