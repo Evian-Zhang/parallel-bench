@@ -1,19 +1,18 @@
 use rand::prelude::*;
+use serde::Serialize;
 use std::fs;
 use std::process::Command;
 
+#[derive(Serialize)]
 pub struct SingleBenchResult {
-    c: usize,
-    rust_rayon: usize,
-    rust_mpi: usize,
-    julia: usize,
+    c: Option<usize>,
+    rust_rayon: Option<usize>,
+    rust_mpi_binding: Option<usize>,
+    rust_mpi_wrapper: Option<usize>,
+    julia: Option<usize>,
 }
 
-pub fn single_bench(
-    testcase_file_path: &str,
-    input_size: usize,
-    kernel_count: usize,
-) -> SingleBenchResult {
+pub fn generate_testcase(testcase_file_path: &str, input_size: usize) -> usize {
     // Prepare testcase
     let mut testcase = vec![0u8; input_size];
     for x in &mut testcase {
@@ -21,7 +20,15 @@ pub fn single_bench(
     }
     let correct_result = testcase.iter().map(|x| *x as usize).sum();
     fs::write(testcase_file_path, &testcase).expect("Unable to write testcase.");
+    correct_result
+}
 
+pub fn single_bench(
+    testcase_file_path: &str,
+    input_size: usize,
+    kernel_count: usize,
+    correct_result: usize,
+) -> SingleBenchResult {
     // Test rust rayon adder
     let rust_rayon_result = process_command(
         rust_rayon_command(),
@@ -29,10 +36,14 @@ pub fn single_bench(
         input_size,
         kernel_count,
     );
-    if rust_rayon_result.result != correct_result {
-        panic!("Rust rayon result wrong!");
-    }
-    let rust_rayon = rust_rayon_result.time_in_micros;
+    let rust_rayon = if let Some(result) = rust_rayon_result {
+        if result.result != correct_result {
+            panic!("Rust rayon result wrong!");
+        }
+        Some(result.time_in_micros)
+    } else {
+        None
+    };
 
     // Test rust mpi wrapper adder
     let rust_mpi_wrapper_result = process_command(
@@ -41,13 +52,14 @@ pub fn single_bench(
         input_size,
         kernel_count,
     );
-    if rust_mpi_wrapper_result.result != correct_result {
-        panic!(
-            "Rust mpi wrapper result wrong: {} vs {correct_result}!",
-            rust_mpi_wrapper_result.result
-        );
-    }
-    let rust_mpi_wrapper = rust_mpi_wrapper_result.time_in_micros;
+    let rust_mpi_wrapper = if let Some(result) = rust_mpi_wrapper_result {
+        if result.result != correct_result {
+            panic!("Rust mpi wrapper result wrong!");
+        }
+        Some(result.time_in_micros)
+    } else {
+        None
+    };
 
     // Test rust mpi binding adder
     let rust_mpi_binding_result = process_command(
@@ -56,13 +68,14 @@ pub fn single_bench(
         input_size,
         kernel_count,
     );
-    if rust_mpi_binding_result.result != correct_result {
-        panic!(
-            "Rust mpi binding result wrong: {} vs {correct_result}!",
-            rust_mpi_binding_result.result
-        );
-    }
-    let rust_mpi_binding = rust_mpi_binding_result.time_in_micros;
+    let rust_mpi_binding = if let Some(result) = rust_mpi_binding_result {
+        if result.result != correct_result {
+            panic!("Rust mpi binding result wrong!");
+        }
+        Some(result.time_in_micros)
+    } else {
+        None
+    };
 
     // Test c adder
     let c_result = process_command(
@@ -71,12 +84,38 @@ pub fn single_bench(
         input_size,
         kernel_count,
     );
-    if c_result.result != correct_result {
-        panic!("C result wrong: {} vs {correct_result}!", c_result.result);
-    }
-    let c = c_result.time_in_micros;
+    let c = if let Some(result) = c_result {
+        if result.result != correct_result {
+            panic!("C result wrong!");
+        }
+        Some(result.time_in_micros)
+    } else {
+        None
+    };
 
-    unimplemented!()
+    // Test Julia adder
+    let julia_result = process_command(
+        julia_command(kernel_count),
+        testcase_file_path,
+        input_size,
+        kernel_count,
+    );
+    let julia = if let Some(result) = julia_result {
+        if result.result != correct_result {
+            panic!("Julia result wrong!");
+        }
+        Some(result.time_in_micros)
+    } else {
+        None
+    };
+
+    SingleBenchResult {
+        c,
+        rust_rayon,
+        rust_mpi_binding,
+        rust_mpi_wrapper,
+        julia,
+    }
 }
 
 struct CommandResult {
@@ -89,7 +128,24 @@ fn process_command(
     testcase_file_path: &str,
     input_size: usize,
     kernel_count: usize,
-) -> CommandResult {
+) -> Option<CommandResult> {
+    for _ in 0..32 {
+        if let Some(result) =
+            process_command_internal(&mut command, testcase_file_path, input_size, kernel_count)
+        {
+            return Some(result);
+        }
+        println!("Something went wrong.");
+    }
+    None
+}
+
+fn process_command_internal(
+    command: &mut Command,
+    testcase_file_path: &str,
+    input_size: usize,
+    kernel_count: usize,
+) -> Option<CommandResult> {
     let output = command
         .env("PARALLEL_BENCH_KERNEL_COUNT", format!("{kernel_count}"))
         .env("PARALLEL_BENCH_INPUT_SIZE", format!("{input_size}"))
@@ -97,15 +153,14 @@ fn process_command(
         .output()
         .unwrap();
     let stdout_str = String::from_utf8_lossy(&output.stdout);
-    println!("{}", String::from_utf8_lossy(&output.stderr));
     let mut lines = stdout_str.lines();
-    let result = usize::from_str_radix(&lines.next().unwrap(), 10).unwrap();
-    let time_in_micros = usize::from_str_radix(&lines.next().unwrap(), 10).unwrap();
+    let result = usize::from_str_radix(&lines.next()?, 10).ok()?;
+    let time_in_micros = usize::from_str_radix(&lines.next()?, 10).ok()?;
     println!("Time is {time_in_micros}");
-    CommandResult {
+    Some(CommandResult {
         result,
         time_in_micros,
-    }
+    })
 }
 
 fn rust_rayon_command() -> Command {
@@ -133,5 +188,15 @@ fn c_command(kernel_count: usize) -> Command {
     cmd.arg("-n")
         .arg(format!("{kernel_count}"))
         .arg("./c-adder/c-adder");
+    cmd
+}
+
+fn julia_command(kernel_count: usize) -> Command {
+    let mut cmd = Command::new("mpiexec");
+    cmd.arg("-n")
+        .arg(format!("{kernel_count}"))
+        .arg("julia")
+        .arg("--project")
+        .arg("./julia-adder/julia-adder.jl");
     cmd
 }

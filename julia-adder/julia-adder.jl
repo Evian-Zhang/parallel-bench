@@ -20,6 +20,8 @@ function main()
     
         next_rank = 2 * rank + 1
         top = 1
+
+        start = time_ns()
     
         while true
             if next_rank >= size
@@ -29,7 +31,7 @@ function main()
             if next_top <= top
                 break
             end
-            MPI.Isend(testcase[top:(next_top - 1)], comm, dest=next_rank)
+            MPI.Send(testcase[top:(next_top - 1)], comm, dest=next_rank)
             top = next_top
             next_rank *= 2
         end
@@ -38,16 +40,19 @@ function main()
             sum += convert(UInt64, testcase[i])
         end
 
-        for i = 0:size
-            partial_sum = 0
-            MPI.Recv!(partial_sum, comm)
+        for i = 1:(size - 1)
+            partial_sum = MPI.Recv(UInt64, comm)
             sum += partial_sum
         end
+
+        duration = time_ns() - start
         println(sum)
+        println(round(UInt64, duration * 1e-3))
     else
-        testcase = Array{UInt8}(undef, 1)
+        status = MPI.Probe(MPI.ANY_SOURCE, MPI.ANY_TAG, comm)
+        input_size = MPI.Get_count(status, UInt8)
+        testcase = zeros(UInt8, input_size)
         MPI.Recv!(testcase, comm)
-        input_size = length(testcase)
 
         next_rank = 2 * rank + 1
         top = 1
@@ -60,7 +65,7 @@ function main()
             if next_top <= top
                 break
             end
-            MPI.Isend(testcase[top:(next_top - 1)], comm, dest=next_rank)
+            MPI.Send(testcase[top:(next_top - 1)], comm, dest=next_rank)
             top = next_top
             next_rank *= 2
         end
@@ -68,7 +73,7 @@ function main()
         for i = top:input_size
             sum += convert(UInt64, testcase[i])
         end
-        MPI.ISend(sum, comm, dest=1)
+        MPI.Send(sum, comm, dest=0)
     end
 end
 
