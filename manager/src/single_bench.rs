@@ -40,6 +40,7 @@ pub fn single_bench(
         if result.result != correct_result {
             panic!("Rust rayon result wrong!");
         }
+        println!("Rust rayon time is\t\t\t{}", result.time_in_micros);
         Some(result.time_in_micros)
     } else {
         None
@@ -56,6 +57,7 @@ pub fn single_bench(
         if result.result != correct_result {
             panic!("Rust mpi wrapper result wrong!");
         }
+        println!("Rust mpi wrapper time is\t\t{}", result.time_in_micros);
         Some(result.time_in_micros)
     } else {
         None
@@ -72,6 +74,7 @@ pub fn single_bench(
         if result.result != correct_result {
             panic!("Rust mpi binding result wrong!");
         }
+        println!("Rust mpi binding is\t\t\t{}", result.time_in_micros);
         Some(result.time_in_micros)
     } else {
         None
@@ -88,6 +91,7 @@ pub fn single_bench(
         if result.result != correct_result {
             panic!("C result wrong!");
         }
+        println!("C time is\t\t\t\t{}", result.time_in_micros);
         Some(result.time_in_micros)
     } else {
         None
@@ -104,6 +108,7 @@ pub fn single_bench(
         if result.result != correct_result {
             panic!("Julia result wrong!");
         }
+        println!("Julia time is\t\t\t\t{}", result.time_in_micros);
         Some(result.time_in_micros)
     } else {
         None
@@ -156,7 +161,6 @@ fn process_command_internal(
     let mut lines = stdout_str.lines();
     let result = usize::from_str_radix(&lines.next()?, 10).ok()?;
     let time_in_micros = usize::from_str_radix(&lines.next()?, 10).ok()?;
-    println!("Time is {time_in_micros}");
     Some(CommandResult {
         result,
         time_in_micros,

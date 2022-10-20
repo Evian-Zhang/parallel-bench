@@ -25,6 +25,7 @@ fn main() {
 
         let now = Instant::now();
 
+        let mut next_nodes_count = 0;
         loop {
             if (next_rank as usize) >= size {
                 break;
@@ -33,24 +34,27 @@ fn main() {
                 break;
             }
             unsafe {
+                let mut request: mpi_sys::MPI_Request = std::mem::zeroed();
                 let to_send = testcase.get_unchecked(top..((input_size + top) / 2));
-                mpi_sys::MPI_Send(
+                mpi_sys::MPI_Isend(
                     to_send as *const [u8] as *const libc::c_void,
                     ((input_size - top) / 2) as i32,
                     mpi_sys::RSMPI_UINT8_T,
                     next_rank,
                     0,
                     mpi_sys::RSMPI_COMM_WORLD,
+                    &mut request as *mut mpi_sys::MPI_Request,
                 );
             }
             top = (input_size + top) / 2;
             next_rank *= 2;
+            next_nodes_count += 1;
         }
         let mut sum: usize = unsafe { testcase.get_unchecked(top..input_size) }
             .into_iter()
             .map(|x| *x as usize)
             .sum();
-        for _ in 0..(size - 1) {
+        for _ in 0..next_nodes_count {
             let partial_sum = unsafe {
                 let mut partial_sum: usize = 0;
                 let mut status: mpi_sys::MPI_Status = std::mem::zeroed();
@@ -71,7 +75,7 @@ fn main() {
         println!("{sum}");
         println!("{duration}");
     } else {
-        let (part_testcase, input_size) = unsafe {
+        let (part_testcase, input_size, source_rank) = unsafe {
             let mut message: mpi_sys::MPI_Message = std::mem::zeroed();
             let mut status: mpi_sys::MPI_Status = std::mem::zeroed();
             mpi_sys::MPI_Mprobe(
@@ -95,12 +99,13 @@ fn main() {
                 &mut message as *mut mpi_sys::MPI_Message,
                 &mut status as *mut mpi_sys::MPI_Status,
             );
-            (part_testcase, input_size as usize)
+            (part_testcase, input_size as usize, status.MPI_SOURCE)
         };
 
         let mut next_rank = 2 * rank + 1;
         let mut top = 0;
 
+        let mut next_nodes_count = 0;
         loop {
             if (next_rank as usize) >= size {
                 break;
@@ -109,29 +114,49 @@ fn main() {
                 break;
             }
             unsafe {
+                let mut request: mpi_sys::MPI_Request = std::mem::zeroed();
                 let to_send = part_testcase.get_unchecked(top..((input_size + top) / 2));
-                mpi_sys::MPI_Send(
+                mpi_sys::MPI_Isend(
                     to_send as *const [u8] as *const libc::c_void,
                     ((input_size - top) / 2) as i32,
                     mpi_sys::RSMPI_UINT8_T,
                     next_rank,
                     0,
                     mpi_sys::RSMPI_COMM_WORLD,
+                    &mut request as *mut mpi_sys::MPI_Request,
                 );
             }
             top = (input_size + top) / 2;
             next_rank *= 2;
+            next_nodes_count += 1;
         }
-        let partial_sum: usize = unsafe { part_testcase.get_unchecked(top..input_size) }
+        let mut sum: usize = unsafe { part_testcase.get_unchecked(top..input_size) }
             .into_iter()
             .map(|x| *x as usize)
             .sum();
+        for _ in 0..next_nodes_count {
+            let partial_sum = unsafe {
+                let mut partial_sum: usize = 0;
+                let mut status: mpi_sys::MPI_Status = std::mem::zeroed();
+                mpi_sys::MPI_Recv(
+                    &mut partial_sum as *mut usize as *mut libc::c_void,
+                    1,
+                    mpi_sys::RSMPI_UINT64_T,
+                    mpi_sys::RSMPI_ANY_SOURCE,
+                    0,
+                    mpi_sys::RSMPI_COMM_WORLD,
+                    &mut status as *mut mpi_sys::MPI_Status,
+                );
+                partial_sum
+            };
+            sum += partial_sum;
+        }
         unsafe {
             mpi_sys::MPI_Send(
-                &partial_sum as *const usize as *const libc::c_void,
+                &sum as *const usize as *const libc::c_void,
                 1,
                 mpi_sys::RSMPI_UINT64_T,
-                0,
+                source_rank,
                 0,
                 mpi_sys::RSMPI_COMM_WORLD,
             );

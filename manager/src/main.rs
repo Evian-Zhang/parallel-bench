@@ -17,7 +17,7 @@ fn main() {
         let correct_result = single_bench::generate_testcase("./testcase.bin", input_size);
         for kernel_count in [1, 2, 4, 8, 16, 32, 64] {
             for round in 0..16 {
-                println!("{input_size} {kernel_count}");
+                println!("2^{power} = {input_size}: {kernel_count} kernel");
                 let single_bench_result = single_bench::single_bench(
                     "./testcase.bin",
                     input_size,

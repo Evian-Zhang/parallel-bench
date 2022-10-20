@@ -32,19 +32,22 @@ int main(int argc, char **argv) {
         struct timespec start;
         clock_gettime(CLOCK_MONOTONIC, &start);
 
+        unsigned int next_nodes_count = 0;
         while (1) {
             if (next_rank >= size) { break; }
             if ((input_size + top) / 2 <= top) { break; }
-            MPI_Send(&testcase[top], (input_size - top) / 2, MPI_UNSIGNED_CHAR, next_rank, 0, MPI_COMM_WORLD);
+            MPI_Request request;
+            MPI_Isend(&testcase[top], (input_size - top) / 2, MPI_UNSIGNED_CHAR, next_rank, 0, MPI_COMM_WORLD, &request);
             top = (input_size + top) / 2;
             next_rank *= 2;
+            next_nodes_count++;
         }
         unsigned long long sum = 0;
         for (int i = top; i < input_size; i++) {
             sum += (unsigned long long)testcase[i];
         }
 
-        for (int i = 0; i < size - 1; i++) {
+        for (int i = 0; i < next_nodes_count; i++) {
             unsigned long long partial_sum;
             MPI_Status status;
             MPI_Recv(&partial_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
@@ -67,22 +70,35 @@ int main(int argc, char **argv) {
         MPI_Get_count(&status, MPI_UNSIGNED_CHAR, &input_size);
         unsigned char *part_testcase = (unsigned char *)malloc(input_size);
         MPI_Mrecv(part_testcase, input_size, MPI_UNSIGNED_CHAR, &message, &status);
+        int source_rank = status.MPI_SOURCE;
 
         int next_rank = 2 * rank + 1;
         int top = 0;
 
+        unsigned int next_nodes_count = 0;
         while (1) {
             if (next_rank >= size) { break; }
             if ((input_size + top) / 2 <= top) { break; }
-            MPI_Send(&part_testcase[top], (input_size - top) / 2, MPI_UNSIGNED_CHAR, next_rank, 0, MPI_COMM_WORLD);
+            MPI_Request request;
+            MPI_Isend(&part_testcase[top], (input_size - top) / 2, MPI_UNSIGNED_CHAR, next_rank, 0, MPI_COMM_WORLD, &request);
             top = (input_size + top) / 2;
             next_rank *= 2;
+            next_nodes_count++;
         }
+
         unsigned long long sum = 0;
         for (int i = top; i < input_size; i++) {
             sum += (unsigned long long)part_testcase[i];
         }
-        MPI_Send(&sum, 1, MPI_UNSIGNED_LONG_LONG, 0, 0, MPI_COMM_WORLD);
+
+        for (int i = 0; i < next_nodes_count; i++) {
+            unsigned long long partial_sum;
+            MPI_Status status;
+            MPI_Recv(&partial_sum, 1, MPI_UNSIGNED_LONG_LONG, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status);
+            sum += partial_sum;
+        }
+
+        MPI_Send(&sum, 1, MPI_UNSIGNED_LONG_LONG, source_rank, 0, MPI_COMM_WORLD);
 
         free(part_testcase);
     }
