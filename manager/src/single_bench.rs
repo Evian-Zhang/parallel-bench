@@ -3,7 +3,7 @@ use serde::Serialize;
 use std::fs;
 use std::process::Command;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct SingleBenchResult {
     c: Option<usize>,
     rust_rayon: Option<usize>,
@@ -134,7 +134,7 @@ fn process_command(
     input_size: usize,
     kernel_count: usize,
 ) -> Option<CommandResult> {
-    for _ in 0..32 {
+    for _ in 0..4 {
         if let Some(result) =
             process_command_internal(&mut command, testcase_file_path, input_size, kernel_count)
         {

@@ -32,7 +32,7 @@ function main()
             if next_top <= top
                 break
             end
-            MPI.Isend(testcase[top:(next_top - 1)], comm, dest=next_rank)
+            MPI.Send(testcase[top:(next_top - 1)], comm, dest=next_rank)
             top = next_top
             next_rank *= 2
             next_nodes_count += 1
@@ -69,7 +69,7 @@ function main()
             if next_top <= top
                 break
             end
-            MPI.Isend(testcase[top:(next_top - 1)], comm, dest=next_rank)
+            MPI.Send(testcase[top:(next_top - 1)], comm, dest=next_rank)
             top = next_top
             next_rank *= 2
             next_nodes_count += 1
