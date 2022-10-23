@@ -54,7 +54,7 @@ with open('./bench_result.json', 'r') as f:
     # Increment input size and kernel count stimulately
     fig = plt.figure()
     for test in testset:
-        speeds = [benchmarks[(kernel_counts[i], input_size_pows[i])][test] / benchmarks[(1, input_size_pows[i])][test] for i in range(7)]
+        speeds = [benchmarks[(1, input_size_pows[i])][test] / benchmarks[(kernel_counts[i], input_size_pows[i])][test] for i in range(7)]
         plt.plot(range(7), speeds, label=test)
     plt.xticks(range(7), labels=[(kernel_counts[i], input_size_pows[i]) for i in range(7)])
     plt.legend()
@@ -84,7 +84,7 @@ with open('./bench_result.json', 'r') as f:
     for input_size_pow in input_size_pows:
         fig = plt.figure()
         for test in testset:
-            speeds = [benchmarks[(kernel_count, input_size_pow)][test] / benchmarks[(1, input_size_pow)][test] for kernel_count in kernel_counts]
+            speeds = [benchmarks[(1, input_size_pow)][test] / benchmarks[(kernel_count, input_size_pow)][test] for kernel_count in kernel_counts]
             plt.plot(kernel_counts, speeds, label=test)
         plt.legend()
         plt.xlabel("Kernel count")
