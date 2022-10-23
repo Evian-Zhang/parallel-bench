@@ -34,20 +34,38 @@ with open('./bench_result.json', 'r') as f:
             for test in testset:
                 single_benchmark[test] /= hit_count
             benchmarks[(kernel_count, input_size_pow)] = single_benchmark
-    
+
+    # Fix kernel count, relationship between run time and input size
     for kernel_count in kernel_counts:
         fig = plt.figure()
         for test in testset:
             speeds = [benchmarks[(kernel_count, input_size_pow)][test] for input_size_pow in input_size_pows]
-            plt.plot(input_size_pows, speeds, label=test)
+            plt.plot([2 ** input_size_pow for input_size_pow in input_size_pows], speeds, label=test)
         plt.yscale("log")
+        plt.semilogx(base=2)
         plt.legend()
         plt.xlabel("Input size (in logarithm scale)")
         plt.ylabel("Average run time in mircoseconds (in logarithm scale)")
         plt.title(f"Performance benchmark with {kernel_count} kernel")
         plt.savefig(f"{ANALYSIS_OUTPUT_PDF_DIR}/kernel-count-{kernel_count}.pdf")
         plt.savefig(f"{ANALYSIS_OUTPUT_PNG_DIR}/kernel-count-{kernel_count}.png")
-    
+        plt.close()
+
+    # Increment input size and kernel count stimulately
+    fig = plt.figure()
+    for test in testset:
+        speeds = [benchmarks[(kernel_counts[i], input_size_pows[i])][test] / benchmarks[(1, input_size_pows[i])][test] for i in range(7)]
+        plt.plot(range(7), speeds, label=test)
+    plt.xticks(range(7), labels=[(kernel_counts[i], input_size_pows[i]) for i in range(7)])
+    plt.legend()
+    plt.xlabel("(kernel count, input_size_pow)")
+    plt.ylabel("Average speedup")
+    plt.title(f"Performance benchmark with kernel count and input size")
+    plt.savefig(f"{ANALYSIS_OUTPUT_PDF_DIR}/speedup-weak-scaling.pdf")
+    plt.savefig(f"{ANALYSIS_OUTPUT_PNG_DIR}/speedup-weak-scaling.png")
+    plt.close()
+
+    # Fix input size, relationship between run time and kernel count
     for input_size_pow in input_size_pows:
         fig = plt.figure()
         for test in testset:
@@ -60,4 +78,18 @@ with open('./bench_result.json', 'r') as f:
         plt.title(f"Performance benchmark with 2^{input_size_pow} inputs")
         plt.savefig(f"{ANALYSIS_OUTPUT_PDF_DIR}/input-size-{input_size_pow}.pdf")
         plt.savefig(f"{ANALYSIS_OUTPUT_PNG_DIR}/input-size-{input_size_pow}.png")
+        plt.close()
 
+    # Fix input size, relationship between run time and kernel count
+    for input_size_pow in input_size_pows:
+        fig = plt.figure()
+        for test in testset:
+            speeds = [benchmarks[(kernel_count, input_size_pow)][test] / benchmarks[(1, input_size_pow)][test] for kernel_count in kernel_counts]
+            plt.plot(kernel_counts, speeds, label=test)
+        plt.legend()
+        plt.xlabel("Kernel count")
+        plt.ylabel("Average speedup")
+        plt.title(f"Performance benchmark with 2^{input_size_pow} inputs")
+        plt.savefig(f"{ANALYSIS_OUTPUT_PDF_DIR}/speedup-input-size-{input_size_pow}.pdf")
+        plt.savefig(f"{ANALYSIS_OUTPUT_PNG_DIR}/speedup-input-size-{input_size_pow}.png")
+        plt.close()

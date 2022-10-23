@@ -103,6 +103,20 @@ cargo build --release --workspace
 
 ![](./analysis_output/png/kernel-count-64.png)
 
+### 加速比
+
+#### 固定输入大小为2^28
+
+![](./analysis_output/png/speedup-input-size-27.png)
+
+可见算法不是强可扩展性算法
+
+#### 同步增加输入大小与核数
+
+![](./analysis_output/png/speedup-weak-scaling.png)
+
+在16核之前，基本为弱可扩展性算法。
+
 ## 解释与分析
 
 ### 结果的准确性
