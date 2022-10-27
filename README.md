@@ -59,7 +59,7 @@ Rust的MPI库是[mpi](https://crates.io/crates/mpi)。这个库对MPI的接口�
 
 MPI实现使用的是MPICH 4.0-3。
 
-C语言使用了`mpicc`编译器。
+C语言使用了`mpicc`编译器，在编译时使用了`-cc=clang`，保证了与Rust同样使用LLVM的优化。
 
 Rust版本为1.64.0。
 
