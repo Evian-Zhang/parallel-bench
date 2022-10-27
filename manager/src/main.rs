@@ -33,7 +33,7 @@ fn main() {
             for power in 20u32..30u32 {
                 let input_size = 2usize.pow(power);
                 let correct_result = single_bench::generate_testcase("./testcase.bin", input_size);
-                for kernel_count in [1, 2, 4, 8, 16, 32, 64] {
+                for kernel_count in [1, 2, 4, 6, 8, 10, 12, 14, 16] {
                     for round in 0..16 {
                         println!("Input size is 2^{power} = {input_size}; Kernel count is {kernel_count}");
                         let single_bench_result = single_bench::single_bench(

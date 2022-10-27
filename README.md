@@ -55,7 +55,7 @@ Rust的MPI库是[mpi](https://crates.io/crates/mpi)。这个库对MPI的接口�
 
 ## 环境
 
-本实验的环境为24核Intel Core i9 12900K，64GB内存，Ubuntu 22.04.1系统。
+本实验的环境为16核Intel Core i9 12900K，64GB内存，Ubuntu 22.04.1系统。
 
 MPI实现使用的是MPICH 4.0-3。
 
