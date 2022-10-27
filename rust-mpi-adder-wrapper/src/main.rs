@@ -16,7 +16,7 @@ fn main() {
         let testcase_file = File::open(testcase_path).unwrap();
         let testcase = testcase_file
             .bytes()
-            .map(|optional_byte| unsafe { optional_byte.unwrap_unchecked() } as usize)
+            .map(|optional_byte| unsafe { optional_byte.unwrap_unchecked() })
             .collect::<Vec<_>>();
         let input_size = testcase.len();
 
@@ -26,27 +26,30 @@ fn main() {
         let now = Instant::now();
 
         let mut next_nodes_count = 0;
-        mpi::request::scope(|scope| loop {
-            if (next_rank as usize) >= size {
-                break;
+        let mut sum: usize = mpi::request::scope(|scope| {
+            loop {
+                if (next_rank as usize) >= size {
+                    break;
+                }
+                if (input_size + top) / 2 <= top {
+                    break;
+                }
+                WaitGuard::from(
+                    world
+                        .process_at_rank(next_rank)
+                        .immediate_send(scope, unsafe {
+                            testcase.get_unchecked(top..((input_size + top) / 2))
+                        }),
+                );
+                top = (input_size + top) / 2;
+                next_rank *= 2;
+                next_nodes_count += 1;
             }
-            if (input_size + top) / 2 <= top {
-                break;
-            }
-            WaitGuard::from(
-                world
-                    .process_at_rank(next_rank)
-                    .immediate_send(scope, unsafe {
-                        testcase.get_unchecked(top..((input_size + top) / 2))
-                    }),
-            );
-            top = (input_size + top) / 2;
-            next_rank *= 2;
-            next_nodes_count += 1;
+            unsafe { testcase.get_unchecked(top..input_size) }
+                .into_iter()
+                .map(|x| *x as usize)
+                .sum()
         });
-        let mut sum: usize = unsafe { testcase.get_unchecked(top..input_size) }
-            .into_iter()
-            .sum();
         for _ in 0..next_nodes_count {
             let (partial_sum, _) = world.any_process().receive::<usize>();
             sum += partial_sum;
@@ -55,7 +58,7 @@ fn main() {
         println!("{sum}");
         println!("{duration}");
     } else {
-        let (part_testcase, status) = world.any_process().receive_vec::<usize>();
+        let (part_testcase, status) = world.any_process().receive_vec::<u8>();
         let input_size = part_testcase.len();
         let source_rank = status.source_rank();
 
@@ -63,27 +66,30 @@ fn main() {
         let mut top = 0;
 
         let mut next_nodes_count = 0;
-        mpi::request::scope(|scope| loop {
-            if (next_rank as usize) >= size {
-                break;
+        let mut sum: usize = mpi::request::scope(|scope| {
+            loop {
+                if (next_rank as usize) >= size {
+                    break;
+                }
+                if (input_size + top) / 2 <= top {
+                    break;
+                }
+                WaitGuard::from(
+                    world
+                        .process_at_rank(next_rank)
+                        .immediate_send(scope, unsafe {
+                            part_testcase.get_unchecked(top..((input_size + top) / 2))
+                        }),
+                );
+                top = (input_size + top) / 2;
+                next_rank *= 2;
+                next_nodes_count += 1;
             }
-            if (input_size + top) / 2 <= top {
-                break;
-            }
-            WaitGuard::from(
-                world
-                    .process_at_rank(next_rank)
-                    .immediate_send(scope, unsafe {
-                        part_testcase.get_unchecked(top..((input_size + top) / 2))
-                    }),
-            );
-            top = (input_size + top) / 2;
-            next_rank *= 2;
-            next_nodes_count += 1;
+            unsafe { part_testcase.get_unchecked(top..input_size) }
+                .into_iter()
+                .map(|x| *x as usize)
+                .sum()
         });
-        let mut sum: usize = unsafe { part_testcase.get_unchecked(top..input_size) }
-            .into_iter()
-            .sum();
         for _ in 0..next_nodes_count {
             let (partial_sum, _) = world.any_process().receive::<usize>();
             sum += partial_sum;

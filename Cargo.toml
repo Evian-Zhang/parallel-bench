@@ -1,2 +1,5 @@
 [workspace]
 members = ["manager", "rust-rayon-adder", "rust-mpi-adder-wrapper", "rust-mpi-adder-binding"]
+
+[profile.release]
+lto = true
