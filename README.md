@@ -99,23 +99,19 @@ cargo build --release --workspace
 
 ![](./analysis_output/png/kernel-count-16.png)
 
-### Fixed kernel count 64
-
-![](./analysis_output/png/kernel-count-64.png)
-
 ### 加速比
 
 #### 固定输入大小为2^28
 
-![](./analysis_output/png/speedup-input-size-27.png)
+![](./analysis_output/png/speedup-input-size-28.png)
 
-可见算法不是强可扩展性算法
+也许基本是强可扩展性算法？
 
 #### 同步增加输入大小与核数
 
 ![](./analysis_output/png/speedup-weak-scaling.png)
 
-在16核之前，基本为弱可扩展性算法。
+基本为弱可扩展性算法。
 
 ## 解释与分析
 
@@ -135,51 +131,12 @@ Julia性能较低，有可能是因为我不太熟悉Julia，没有合理优化�
 
 ### Rust MPI Wrapper
 
-Rust的MPI wrapper比binding慢了很多。经过调研，我认为主要原因有二：
-
-#### 常数载入导致的访存
-
-作者认为（[rsmpi/rsmpi#62](https://github.com/rsmpi/rsmpi/issues/62)）：在MPI标准中提到，MPI的常数都是**链接时常数**，并且OpenMPI的实现也支持在动态链接中重新定义相应的常数。因此，这些常数并不能定义为Rust中的`const`（也就是编译期常数），而得是`static`。
-
-这导致了在最终生成的二进制文件中，对相应的常数的使用都被翻译为了一次访存。例如，对于
-
-```c
-MPI_Mprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &message, &status)
-```
-
-这样的函数调用，对于使用`mpicc`编译的C语言程序，其前三个常数的载入在二进制文件中为
-
-```asm
-mov    edx, 44000000h
-or     esi, 0FFFFFFFFh
-mov    edi, 0FFFFFFFEh
-```
-
-完全不涉及到访存。因为在C语言编译期中，这三个常数被看作是编译期常数。
-
-但相应的，在Rust编译出的程序中，这三个常数的载入为：
-
-```asm
-lea    rax, RSMPI_ANY_SOURCE
-mov    edi, [rax]
-lea    rax, RSMPI_ANY_TAG
-mov    esi, [rax]
-lea    rax, RSMPI_COMM_WORLD
-mov    edx, [rax]
-```
-
-均为访存。
-
-究竟哪个更遵守标准我也不清楚，但是Rust方面的这个做法就会慢一些。
-
-#### 部分函数待优化
-
-似乎Rust之前并没有很关注MPI的生态，所以目前我使用的`rsmpi`库是唯一能用的Rust MPI的wrapper。但这个库依然使用人数过低（只有8k次下载），因此还有很多待优化的地方。
-
-通过比对wrapper和binding的二进制代码，可以发现，不知道作者是怎么写的，Rust编译器居然都没能把一些可以inline的地方进行inline。我尝试把作者逻辑剥离出来，但发现不过我怎么写，Rust编译器总能把合适的函数inline。有可能是作者写了什么非常复杂的，反直觉的逻辑，才会导致Rust出现这种情况。
-
-总之，由于使用人数少，所以函数库待优化，导致效率不高。不过我提了相关的issue（[rsmpi/rsmpi#137](https://github.com/rsmpi/rsmpi/issues/137)），等待作者优化。
+Rust的MPI wrapper比C语言快，这是非常棒的结果。分析了一下两者产生的二进制程序，其调用的MPI接口应该是一致的。优化应该是程序逻辑结构以及求和时的优化。
 
 ### Rust MPI Binding
 
-用Rust的MPI Binding写出来的程序性能和C语言相当。但是由于前述的常量访存问题，有可能会稍微慢一些些。此外，值得注意的是，Rust因为有完善的变量生存周期检查机制，所以可以极大地优化程序性能。但是对于binding这种多语言交互的情况，也只能优化Rust代码本身的性能。如果要Rust写的MPI更快，得用Rust重写整个MPI实现，但似乎现在还没人做。所以Rust写MPI，并不能比C写MPI得到更好的性能，但肯定不至于更差。
+用Rust的MPI Binding写出来的程序性能和C语言相当。但是由于常量访存和inline的问题（可见[rsmpi/rsmpi#137](https://github.com/rsmpi/rsmpi/issues/137)），有可能会稍微慢一些些。此外，值得注意的是，Rust因为有完善的变量生存周期检查机制，所以可以极大地优化程序性能。但是对于binding这种多语言交互的情况，也只能优化Rust代码本身的性能。如果要Rust写的MPI更快，得用Rust重写整个MPI实现，但似乎现在还没人做。所以Rust写MPI，并不能比C写MPI得到更好的性能，但肯定不至于更差。
+
+## 未来工作
+
+可以考虑使用Rust上原生的进程级并行库（目前还没找到）以及Julia的原生[分布式计算库](https://docs.julialang.org/en/v1/stdlib/Distributed/)作benchmark。

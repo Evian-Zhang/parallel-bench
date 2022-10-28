@@ -9,7 +9,7 @@ os.makedirs(ANALYSIS_OUTPUT_DIR, exist_ok=True)
 os.makedirs(ANALYSIS_OUTPUT_PDF_DIR, exist_ok=True)
 os.makedirs(ANALYSIS_OUTPUT_PNG_DIR, exist_ok=True)
 
-kernel_counts = [1, 2, 4, 8, 16, 32, 64]
+kernel_counts = [1, 2, 4, 6, 8, 10, 12, 14, 16]
 input_size_pows = range(20, 30)
 testset = ["c", "rust_rayon", "rust_mpi_wrapper", "rust_mpi_binding", "julia"]
 
